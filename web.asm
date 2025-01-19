@@ -3,6 +3,7 @@ format ELF64 executable
 SYS_SOCKET = 41
 SYS_EXIT = 60
 SYS_WRITE = 1
+SYS_BIND = 49
 
 STDOUT = 1
 STDERR = 2
@@ -56,7 +57,7 @@ main:
     cmp rax, 0  ; Check for error
     jl error_socket
 
-    mov dword [sockfd], eax ;  specify we are moving 2 bytes result (therefore using eax)
+    mov qword [sockfd], rax ;  specify we are moving 2 bytes result (therefore using eax)
     
     ;;    servaddr.sin_family = AF_INET; 
     ;;    servaddr.sin_addr.s_addr = htonl(INADDR_ANY); // INADDR_ANY = 0
@@ -97,7 +98,7 @@ error_bind_msg_len = $ - error_bind_msg
 
 
 ;; Mutable Data
-sockfd dd 0
+sockfd dq 0
 
 servaddr.sin_family dw 0
 servaddr.sin_port dw 0
