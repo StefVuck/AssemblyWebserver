@@ -57,7 +57,7 @@ macro bind socket, struct, size_struct
 
 macro listen socket, backlog
 {
-    mov rax SYS_LISTEN
+    mov rax, SYS_LISTEN
     mov rdi, socket
     mov rsi, backlog
 }
@@ -121,13 +121,13 @@ error_listen:
 segment readable writable
 
 ;; Constants etc:
-start db "Web Server Starting\n", 10
+start db "Web Server Starting", 10
 start_len = $ - start
-error_sock_msg db "Error Creating Socket\n", 10
+error_sock_msg db "Error Creating Socket", 10
 error_sock_msg_len = $ - error_sock_msg
-error_bind_msg db "Error Binding Socket\n", 10
+error_bind_msg db "Error Binding Socket", 10
 error_bind_msg_len = $ - error_bind_msg
-error_listen_msg db "Listen failed...\n", 10
+error_listen_msg db "Listen failed...", 10
 error_listen_msg_len = $ - error_listen_msg
 
 
