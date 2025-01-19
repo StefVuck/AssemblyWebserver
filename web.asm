@@ -1,12 +1,22 @@
 format ELF64 executable
 
 SYS_SOCKET = 41
+SYS_CLOSE = 3
 SYS_EXIT = 60
 SYS_WRITE = 1
 SYS_BIND = 49
+SYS_LISTEN = 50
 
 STDOUT = 1
 STDERR = 2
+
+
+macro close_socket socket
+{
+    mov rax, SYS_CLOSE
+    mov rdi, socket
+    syscall
+}
 
 macro write fd, buf, count
 {
@@ -17,14 +27,17 @@ macro write fd, buf, count
     syscall
 }
 
-macro exit_error
+macro exit_error socket
 {
+    ;; Clean up socket
+    close_socket socket
+
     mov rax, SYS_EXIT
     mov rdi, 1
     syscall
 }
 
-;; equivalent to standard C `int socket()`
+
 macro socket domain, type, protocol
 {
     mov rax, SYS_SOCKET
@@ -40,6 +53,13 @@ macro bind socket, struct, size_struct
     mov rdi, socket
     mov rsi, struct
     mov rdx, size_struct
+}
+
+macro listen socket, backlog
+{
+    mov rax SYS_LISTEN
+    mov rdi, socket
+    mov rsi, backlog
 }
 
 
@@ -72,6 +92,11 @@ main:
     cmp rax, 0
     jl error_bind
 
+    ;; listen(sockfd, 5) // Where 5 is the backlog of connections
+    listen [sockfd], 5
+    cmp rax, 0
+    jl error_listen
+
 ;; EXIT SUCCESSFULLY
     mov rax, SYS_EXIT
     mov rdi, 0
@@ -81,27 +106,37 @@ main:
 ;; Errors:
 error_socket:
     write STDERR, error_sock_msg, error_sock_msg_len 
-    exit_error
+    exit_error [sockfd]
 
-error_bind
+error_bind:
     write STDERR, error_bind_msg, error_bind_msg_len
-    exit_error
+    exit_error [sockfd]
+
+error_listen:
+    write STDERR, error_listen_msg, error_listen_msg_len
+
+
+
+;; Memory
+segment readable writable
 
 ;; Constants etc:
-segment readable writable
-start db "Web Server Starting", 10
+start db "Web Server Starting\n", 10
 start_len = $ - start
-error_sock_msg db "Error Creating Socket", 10
+error_sock_msg db "Error Creating Socket\n", 10
 error_sock_msg_len = $ - error_sock_msg
-error_bind_msg db "Error Binding Socket", 10
+error_bind_msg db "Error Binding Socket\n", 10
 error_bind_msg_len = $ - error_bind_msg
+error_listen_msg db "Listen failed...\n", 10
+error_listen_msg_len = $ - error_listen_msg
 
 
 ;; Mutable Data
 sockfd dq 0
 
+;; servaddr struct
 servaddr.sin_family dw 0
 servaddr.sin_port dw 0
 servaddr.sin_addr dd 0
 servaddr.sin_zero dq 0
-size_servaddr = $ - servaddr.sin_family
+size_servaddr = $ - servaddr.sin_family ; size of first elem
