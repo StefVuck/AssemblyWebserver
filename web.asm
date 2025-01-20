@@ -12,7 +12,7 @@ STDOUT = 1
 STDERR = 2
 
 
-macro close_socket socket
+macro close socket
 {
     mov rax, SYS_CLOSE
     mov rdi, socket
@@ -28,10 +28,11 @@ macro write fd, buf, count
     syscall
 }
 
-macro exit_error socket
+macro exit_error socket, connection
 {
     ;; Clean up socket
-    close_socket socket
+    close socket
+    close connection
 
     mov rax, SYS_EXIT
     mov rdi, 1
@@ -64,7 +65,6 @@ macro listen socket, backlog
     mov rsi, backlog
     syscall
 }
-
 
 macro accept socket, addr, addrlen
 {
@@ -115,8 +115,11 @@ main:
     cmp rax, 0
     jl error_accept
 
+    mov qword [connfd], rax ; Move the connection into memory from rax
+
 ;; EXIT SUCCESSFULLY
-    close_socket [sockfd]
+    close [sockfd]
+    close [connection]
     mov rax, SYS_EXIT
     mov rdi, 0
     syscall
@@ -125,19 +128,19 @@ main:
 ;; Errors:
 error_socket:
     write STDERR, error_sock_msg, error_sock_msg_len 
-    exit_error [sockfd]
+    exit_error [sockfd] [connfd]
 
 error_bind:
     write STDERR, error_bind_msg, error_bind_msg_len
-    exit_error [sockfd]
+    exit_error [sockfd] [connfd]
 
 error_listen:
     write STDERR, error_listen_msg, error_listen_msg_len
-    exit_error [sockfd]
+    exit_error [sockfd] [connfd]
 
 error_accept:
     write STDERR, error_accept_msg, error_accept_msg_len
-    exit_error [sockfd]
+    exit_error [sockfd] [connfd]
 
 ;; Memory
 segment readable writable
@@ -159,7 +162,8 @@ error_accept_msg db "Server Accept Failed", 10
 error_accept_msg_len = $ - error_accept_msg
 
 ;; Mutable Data
-sockfd dq 0
+sockfd dq -1
+connfd dq -1
 
 ;; servaddr struct
 servaddr.sin_family dw 0
