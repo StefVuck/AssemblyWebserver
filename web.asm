@@ -6,6 +6,7 @@ SYS_EXIT = 60
 SYS_WRITE = 1
 SYS_BIND = 49
 SYS_LISTEN = 50
+SYS_ACCEPT = 43
 
 STDOUT = 1
 STDERR = 2
@@ -53,6 +54,7 @@ macro bind socket, struct, size_struct
     mov rdi, socket
     mov rsi, struct
     mov rdx, size_struct
+    syscall
 }
 
 macro listen socket, backlog
@@ -60,8 +62,18 @@ macro listen socket, backlog
     mov rax, SYS_LISTEN
     mov rdi, socket
     mov rsi, backlog
+    syscall
 }
 
+
+macro accept socket, addr, addrlen
+{
+    mov rax, SYS_ACCEPT
+    mov rdi, socket
+    mov rsi, addr
+    mov rdx, addrlen
+    syscall
+}
 
 segment readable executable
 entry main
@@ -97,7 +109,14 @@ main:
     cmp rax, 0
     jl error_listen
 
+    ;; // Accept the data packet from client and verification 
+    ;; connfd = accept(sockfd, (SA*)&cli, &len); 
+    accept [sockfd], cli.sin_family, cli_len
+    cmp rax, 0
+    jl error_accept
+
 ;; EXIT SUCCESSFULLY
+    close_socket [sockfd]
     mov rax, SYS_EXIT
     mov rdi, 0
     syscall
@@ -114,8 +133,11 @@ error_bind:
 
 error_listen:
     write STDERR, error_listen_msg, error_listen_msg_len
+    exit_error [sockfd]
 
-
+error_accept:
+    write STDERR, error_accept_msg, error_accept_msg_len
+    exit_error [sockfd]
 
 ;; Memory
 segment readable writable
@@ -123,13 +145,18 @@ segment readable writable
 ;; Constants etc:
 start db "Web Server Starting", 10
 start_len = $ - start
+
 error_sock_msg db "Error Creating Socket", 10
 error_sock_msg_len = $ - error_sock_msg
+
 error_bind_msg db "Error Binding Socket", 10
 error_bind_msg_len = $ - error_bind_msg
+
 error_listen_msg db "Listen failed...", 10
 error_listen_msg_len = $ - error_listen_msg
 
+error_accept_msg db "Server Accept Failed", 10
+error_accept_msg_len = $ - error_accept_msg
 
 ;; Mutable Data
 sockfd dq 0
@@ -140,3 +167,11 @@ servaddr.sin_port dw 0
 servaddr.sin_addr dd 0
 servaddr.sin_zero dq 0
 size_servaddr = $ - servaddr.sin_family ; size of first elem
+
+;; cli struct
+cli.sin_family dw 0
+cli.sin_port dw 0
+cli.sin_addr dd 0
+cli.sin_zero dq 0
+size_cli = $ - cli.sin_family ; size of first elem
+cli_len dd size_cli
