@@ -100,7 +100,7 @@ main:
     ;; sockfd = socket(AF_INET, SOCK_STREAM, 0);
     socket 2, 1, 0 ; Opening iPv4 TCP
     cmp rax, 0  ; Check for error
-    jl error_socket
+    jl .error_socket
 
     mov qword [sockfd], rax ;  specify we are moving 2 bytes result (therefore using eax)
     
@@ -140,7 +140,6 @@ main:
     mov [curr_request], request
 
     write STDOUT, [curr_request], [request_len]
-
     ;; Loading to prepare for starts_with
     mov rdi, [curr_request]
     mov rsi, [request_len]
@@ -165,11 +164,11 @@ main:
     write STDERR, unsupported_req_msg, unsupported_req_msg_len
     jmp .next
 
-.handle_get
+.handle_get:
     write [connfd], response, response_len
     jmp .next
 
-.shutdown
+.shutdown:
     write STDOUT, server_closing_msg, server_closing_msg_len
     close [sockfd]
     close [connfd]
@@ -196,7 +195,7 @@ main:
     exit_error [sockfd], [connfd]
 
 .error_read:
-    write STDERR, error_read_msg, error_read_msg_lenm
+    write STDERR, error_read_msg, error_read_msg_len
     exit_error [sockfd], [connfd]
 
 
@@ -207,7 +206,7 @@ main:
 starts_with:
     xor rax, rax ; Clear rax and rbx
     xor rbx, rbx
-.next: 
+.next:
     cmp rsi, 0 ; Check remaining text len 
     jle .done ; Finish if no text left
     cmp r10, 0 ; check prefix len
@@ -215,7 +214,7 @@ starts_with:
 
     mov al, byte [rdi] ;  move current text byte
     mov bl, byte [rdx] ;  move current prefix byte
-    cmp rax, rbx
+    cmp al, bl
     jne .done ; if not equal, exit
 
     dec rsi ; decrement remaining text len
@@ -226,12 +225,13 @@ starts_with:
 
     jmp .next
 
-.done 
+.done:
     cmp r10, 0 
     je .yes ; If we have reached here with an empty prefix len, they must match
+.no: 
     mov rax, 0 ; Otherwise, load error
     ret 
-.yes 
+.yes:
     mov rax, 1 ; Load Success
     ret
 
@@ -240,6 +240,12 @@ starts_with:
 segment readable writable
 
 ;; Constants etc:
+get_prefix db "GET "
+get_prefix_len = $ - get_prefix
+
+post_prefix db "POST "
+post_prefix_len = $ - post_prefix
+
 start db "Web Server Starting", 10
 start_len = $ - start
 
@@ -254,6 +260,9 @@ error_listen_msg_len = $ - error_listen_msg
 
 error_accept_msg db "Server Accept Failed", 10
 error_accept_msg_len = $ - error_accept_msg
+
+error_read_msg db "Error Reading Message", 10
+error_read_msg_len = $ - error_read_msg
 
 unsupported_req_msg db "Unsupported HTTP Request Received, Ignoring", 10
 unsupported_req_msg_len = $ - unsupported_req_msg
@@ -290,7 +299,7 @@ unsupported_req     db "HTTP/1.1 405 Method Not Allowed", 13, 10
                     db "<h1>Unsupported Request</h1>", 13, 10
                     db "<a href='/'>Go Back</a>", 13, 10
                     db "</body></html>", 0
-
+unsupported_req_len = $ - unsupported_req
 
 
 ;; Mutable Data
