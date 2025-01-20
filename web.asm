@@ -263,7 +263,6 @@ server_closing_msg_len = $ - server_closing_msg
 
 response    db "HTTP/1.1 200 OK", 13, 10
             db "Content-Type: text/html", 13, 10
-            db "Content-Length: 160", 13, 10
             db "Connection: close", 13, 10
             db 13, 10 
             db "<!DOCTYPE html><html><head>", 13, 10
@@ -271,11 +270,11 @@ response    db "HTTP/1.1 200 OK", 13, 10
             db "<style>", 13, 10
             db "body{background-color:#f0f0f0;", 13, 10
             db "text-align:center;font-family:Arial;}", 13, 10
-            db "h1{color:#333;}", 13, 10
+            db "h1{color:#0FF;}", 13, 10
             db "</style>", 13, 10
             db "</head><body>", 13, 10
             db "<h1>My Webserver in Assembly!</h1>", 13, 10
-            db "</body></html>", 0
+            db "</body></html>", 13, 10, 0
 
 response_len = $ - response
 
