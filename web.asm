@@ -109,6 +109,8 @@ main:
     cmp rax, 0
     jl error_listen
 
+
+next: ; Handle continous 
     ;; // Accept the data packet from client and verification 
     ;; connfd = accept(sockfd, (SA*)&cli, &len); 
     accept [sockfd], cli.sin_family, cli_len
@@ -117,9 +119,15 @@ main:
 
     mov qword [connfd], rax ; Move the connection into memory from rax
 
+    write [connfd], response, response_len
+
+    jmp next
+
+;; CURRENTLY IMPOSSIBLE TO REACH
 ;; EXIT SUCCESSFULLY
+    write STDOUT, server_closing_msg, server_closing_msg_len
     close [sockfd]
-    close [connection]
+    close [connfd]
     mov rax, SYS_EXIT
     mov rdi, 0
     syscall
@@ -128,19 +136,19 @@ main:
 ;; Errors:
 error_socket:
     write STDERR, error_sock_msg, error_sock_msg_len 
-    exit_error [sockfd] [connfd]
+    exit_error [sockfd], [connfd]
 
 error_bind:
     write STDERR, error_bind_msg, error_bind_msg_len
-    exit_error [sockfd] [connfd]
+    exit_error [sockfd], [connfd]
 
 error_listen:
     write STDERR, error_listen_msg, error_listen_msg_len
-    exit_error [sockfd] [connfd]
+    exit_error [sockfd], [connfd]
 
 error_accept:
     write STDERR, error_accept_msg, error_accept_msg_len
-    exit_error [sockfd] [connfd]
+    exit_error [sockfd], [connfd]
 
 ;; Memory
 segment readable writable
@@ -160,6 +168,30 @@ error_listen_msg_len = $ - error_listen_msg
 
 error_accept_msg db "Server Accept Failed", 10
 error_accept_msg_len = $ - error_accept_msg
+
+server_closing_msg db "INFO: Server Shutting Down. Good Night!", 10
+server_closing_msg_len = $ - server_closing_msg
+
+response    db "HTTP/1.1 200 OK", 13, 10
+            db "Content-Type: text/html", 13, 10
+            db "Content-Length: 160", 13, 10
+            db "Connection: close", 13, 10
+            db 13, 10 
+            db "<!DOCTYPE html><html><head>", 13, 10
+            db "<title>Assembly Webserver</title>", 13, 10
+            db "<style>", 13, 10
+            db "body{background-color:#f0f0f0;", 13, 10
+            db "text-align:center;font-family:Arial;}", 13, 10
+            db "h1{color:#333;}", 13, 10
+            db "</style>", 13, 10
+            db "</head><body>", 13, 10
+            db "<h1>My Webserver in Assembly!</h1>", 13, 10
+            db "</body></html>", 0
+
+response_len = $ - response
+
+
+
 
 ;; Mutable Data
 sockfd dq -1
